@@ -1,0 +1,300 @@
+<!DOCTYPE html><html lang="zh-cmn-Hans" prefix="og: http://ogp.me/ns#" class="han-init"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><title>并发编程(十一)-并发编程之定时任务&定时线程池 &mdash; 文浩</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/primer-css/css/primer.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/primer-markdown/dist/user-content.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/components/collection.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/components/repo-card.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/sections/repo-list.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/components/boxed-group.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/globals/common.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/globals/responsive.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/posts/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/octicons/octicons/octicons.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/share.js/dist/css/share.min.css"><link rel="canonical" href="http://localhost:4000/2020/07/11/ScheduleThread/"><link rel="alternate" type="application/atom+xml" title="文浩" href="http://localhost:4000/feed.xml"><link rel="shortcut icon" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/favicon.ico"><meta property="og:title" content="并发编程(十一)-并发编程之定时任务&定时线程池"><meta name="keywords" content="wenhao , 文浩 , 似水似流年 , wenhaoclub , fuwenhao.club , 文浩的博客"><meta name="og:keywords" content="wenhao , 文浩 , 似水似流年 , wenhaoclub , fuwenhao.club , 文浩的博客"><meta name="description" content="ScheduledThreadPoolExecutor"><meta name="og:description" content="ScheduledThreadPoolExecutor"><meta property="og:url" content="http://localhost:4000/2020/07/11/ScheduleThread/"><meta property="og:site_name" content="文浩"><meta property="og:type" content="article"><meta property="og:locale" content="zh_CN" /><meta property="article:published_time" content="2020-07-11"> <script>(function(i,s,o,g,r,a,m){i["DaoVoiceObject"]=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,"script","https://cdn.jsdelivr.net/gh/wenhaoclub/blog-assets/files/js/84f024a1.js","daovoice"); daovoice('init', { app_id: "84f024a1" }); daovoice('update'); </script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/jquery/dist/jquery.min.js"></script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/jquery-ui.js"></script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/main.js"></script></head><body class="" data-mz=""><header class="site-header"><div class="container"><h1><a href="http://localhost:4000/" title="文浩"><span class="octicon octicon-mark-github"></span> 文浩</a></h1><button class="collapsed mobile-visible" type="button" onclick="toggleMenu();"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button><nav class="site-header-nav" role="navigation"> <a href="http://localhost:4000/" class=" site-header-nav-item" target="" title="首页">首页</a> <a href="http://localhost:4000/categories/" class=" site-header-nav-item" target="" title="分类">分类</a> <a href="http://localhost:4000/archives/" class=" site-header-nav-item" target="" title="归档">归档</a> <a href="http://localhost:4000/wiki/" class=" site-header-nav-item" target="" title="维基">维基</a> <a href="http://localhost:4000/links/" class=" site-header-nav-item" target="" title="链接">链接</a> <a href="http://localhost:4000/about/" class=" site-header-nav-item" target="" title="关于">关于</a></nav></div></header><section class="collection-head small geopattern" data-pattern-id="并发编程(十一)-并发编程之定"><div class="container"><div class="columns"><div class="column three-fourths"><div class="collection-title"><h1 class="collection-header">并发编程(十一)-并发编程之定时任务&定时线程池</h1><div class="collection-info"> <span class="meta-info"> <span class="octicon octicon-calendar"></span> 2020/07/11 </span> <span class="meta-info"> <span class="octicon octicon-file-directory"></span> <a href="http://localhost:4000/categories/#并发" title="并发">并发</a> </span> <span class="meta-info"> <span class="octicon octicon-clock"></span> 共 11005 字，约 32 分钟 </span></div></div></div><div class="column one-fourths mobile-hidden"><div class="collection-title"></div></div></div></div></section><section class="container content"><div class="columns"><div class="column three-fourths" ><div><article class="article-content markdown-body"><h1 id="scheduledthreadpoolexecutor">ScheduledThreadPoolExecutor</h1><p>定时线程池类的类结构图</p><p><img src="https://gitee.com/fwh666/fwh_images/raw/master/fwh_images/clipboard.png" alt="clipboard" style="zoom:60%;" /></p><p>它用来处理延时任务或定时任务。</p><p><img src="https://gitee.com/fwh666/fwh_images/raw/master/fwh_images/image-20210724104605742.png" alt="image-20210724104605742" style="zoom:50%;" /></p><p>它接收SchduledFutureTask类型的任务，是线程池调度任务的最小单位，有三种提交任务的方式： schedule scheduledAtFixedRate scheduledWithFixedDelay</p><p>它采用DelayQueue存储等待的任务 DelayQueue内部封装了一个PriorityQueue，它会根据time的先后时间排序，若time相同则根据sequenceNumber排序； DelayQueue也是一个无界队列；</p><h2 id="schduledfuturetask">SchduledFutureTask</h2><p>SchduledFutureTask接收的参数(成员变量)： private long time：任务开始的时间 private final long sequenceNumber;：任务的序号 private final long period：任务执行的时间间隔</p><h3 id="工作线程的执行过程">工作线程的执行过程：</h3><p>工作线程会从DelayQueue取已经到期的任务去执行； 执行结束后重新设置任务的到期时间，再次放回DelayQueue</p><p>ScheduledThreadPoolExecutor会把待执行的任务放到工作队列DelayQueue中，DelayQueue封装了一个PriorityQueue，PriorityQueue会对队列中的ScheduledFutureTask进行排序，具体的排序算法实现如下：</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kt">int</span> <span class="nf">compareTo</span><span class="o">(</span><span class="n">Delayed</span> <span class="n">other</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">other</span> <span class="o">==</span> <span class="k">this</span><span class="o">)</span> <span class="c1">// compare zero if same object</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="o">;</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">other</span> <span class="k">instanceof</span> <span class="n">ScheduledFutureTask</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">ScheduledFutureTask</span><span class="o">&lt;?&gt;</span> <span class="n">x</span> <span class="o">=</span> <span class="o">(</span><span class="n">ScheduledFutureTask</span><span class="o">&lt;?&gt;)</span><span class="n">other</span><span class="o">;</span>
+        <span class="kt">long</span> <span class="n">diff</span> <span class="o">=</span> <span class="n">time</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="na">time</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">diff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="o">;</span>
+        <span class="k">else</span> <span class="nf">if</span> <span class="o">(</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="k">return</span> <span class="mi">1</span><span class="o">;</span>
+        <span class="k">else</span> <span class="nf">if</span> <span class="o">(</span><span class="n">sequenceNumber</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="na">sequenceNumber</span><span class="o">)</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="o">;</span>
+        <span class="k">else</span>
+            <span class="k">return</span> <span class="mi">1</span><span class="o">;</span>
+    <span class="o">}</span>
+    <span class="kt">long</span> <span class="n">diff</span> <span class="o">=</span> <span class="n">getDelay</span><span class="o">(</span><span class="n">NANOSECONDS</span><span class="o">)</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="na">getDelay</span><span class="o">(</span><span class="n">NANOSECONDS</span><span class="o">);</span>
+    <span class="k">return</span> <span class="o">(</span><span class="n">diff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">?</span> <span class="o">-</span><span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">diff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="mi">0</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div><p>首先按照time排序，time小的排在前面，time大的排在后面； 如果time相同，按照sequenceNumber排序，sequenceNumber小的排在前面，sequenceNumber大的排在后面，换句话说，如果两个task的执行时间相同，优先执行先提交的task。</p><p>SchduledFutureTask之run方法实现 run方法是调度task的核心，task的执行实际上是run方法的执行。</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
+    <span class="kt">boolean</span> <span class="n">periodic</span> <span class="o">=</span> <span class="n">isPeriodic</span><span class="o">();</span>
+<span class="c1">//如果当前线程池已经不支持执行任务，则取消</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">canRunInCurrentRunState</span><span class="o">(</span><span class="n">periodic</span><span class="o">))</span>
+        <span class="n">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">);</span>
+<span class="c1">//如果不需要周期性执行，则直接执行run方法然后结束</span>
+    <span class="k">else</span> <span class="nf">if</span> <span class="o">(!</span><span class="n">periodic</span><span class="o">)</span>
+        <span class="n">ScheduledFutureTask</span><span class="o">.</span><span class="na">super</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+<span class="c1">//如果需要周期执行，则在执行完任务以后，设置下一次执行时间</span>
+    <span class="k">else</span> <span class="nf">if</span> <span class="o">(</span><span class="n">ScheduledFutureTask</span><span class="o">.</span><span class="na">super</span><span class="o">.</span><span class="na">runAndReset</span><span class="o">())</span> <span class="o">{</span>
+        <span class="c1">// 计算下次执行该任务的时间</span>
+ <span class="n">setNextRunTime</span><span class="o">();</span>
+ <span class="c1">//重复执行任务</span>
+        <span class="n">reExecutePeriodic</span><span class="o">(</span><span class="n">outerTask</span><span class="o">);</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div><p>如果当前线程池运行状态不可以执行任务，取消该任务，然后直接返回，否则执行步骤2； 如果不是周期性任务，调用FutureTask中的run方法执行，会设置执行结果，然后直接返回，否则执行步骤3； 如果是周期性任务，调用FutureTask中的runAndReset方法执行，不会设置执行结果，然后直接返回，否则执行步骤4和步骤5； 计算下次执行该任务的具体时间； 重复执行任务。</p><p>reExecutePeriodic方法</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">reExecutePeriodic</span><span class="o">(</span><span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">task</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">canRunInCurrentRunState</span><span class="o">(</span><span class="kc">true</span><span class="o">))</span> <span class="o">{</span>
+        <span class="kd">super</span><span class="o">.</span><span class="na">getQueue</span><span class="o">().</span><span class="na">add</span><span class="o">(</span><span class="n">task</span><span class="o">);</span>
+        <span class="k">if</span> <span class="o">(!</span><span class="n">canRunInCurrentRunState</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">&amp;&amp;</span> <span class="n">remove</span><span class="o">(</span><span class="n">task</span><span class="o">))</span>
+            <span class="n">task</span><span class="o">.</span><span class="na">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">);</span>
+        <span class="k">else</span>
+            <span class="nf">ensurePrestart</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+
+</code></pre></div></div><p>该方法和delayedExecute方法类似，不同的是： 由于调用reExecutePeriodic方法时已经执行过一次周期性任务了，所以不会reject当前任务； 传入的任务一定是周期性任务。</p><p>线程池任务的提交 首先是schedule方法，该方法是指任务在指定延迟时间到达后触发，只会执行一次。</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="n">ScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">schedule</span><span class="o">(</span><span class="n">Runnable</span> <span class="n">command</span><span class="o">,</span>
+                                   <span class="kt">long</span> <span class="n">delay</span><span class="o">,</span>
+                                   <span class="n">TimeUnit</span> <span class="n">unit</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">//参数校验</span>
+<span class="k">if</span> <span class="o">(</span><span class="n">command</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">||</span> <span class="n">unit</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nf">NullPointerException</span><span class="o">();</span>
+<span class="c1">//这里是一个嵌套结构，首先把用户提交的任务包装成ScheduledFutureTask</span>
+<span class="c1">//然后在调用decorateTask进行包装，该方法是留给用户去扩展的，默认是个空方法</span>
+    <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">t</span> <span class="o">=</span> <span class="n">decorateTask</span><span class="o">(</span><span class="n">command</span><span class="o">,</span>
+        <span class="k">new</span> <span class="n">ScheduledFutureTask</span><span class="o">&lt;</span><span class="n">Void</span><span class="o">&gt;(</span><span class="n">command</span><span class="o">,</span> <span class="kc">null</span><span class="o">,</span>
+                                      <span class="n">triggerTime</span><span class="o">(</span><span class="n">delay</span><span class="o">,</span> <span class="n">unit</span><span class="o">)));</span>
+   <span class="c1">//包装好任务以后，就进行提交了</span>
+<span class="n">delayedExecute</span><span class="o">(</span><span class="n">t</span><span class="o">);</span>
+    <span class="k">return</span> <span class="n">t</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div><p>任务提交方法：</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">private</span> <span class="kt">void</span> <span class="nf">delayedExecute</span><span class="o">(</span><span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">task</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">//如果线程池已经关闭，则使用拒绝策略把提交任务拒绝掉</span>
+<span class="k">if</span> <span class="o">(</span><span class="n">isShutdown</span><span class="o">())</span>
+        <span class="n">reject</span><span class="o">(</span><span class="n">task</span><span class="o">);</span>
+    <span class="k">else</span> <span class="o">{</span>
+<span class="c1">//与ThreadPoolExecutor不同，这里直接把任务加入延迟队列</span>
+        <span class="kd">super</span><span class="o">.</span><span class="na">getQueue</span><span class="o">().</span><span class="na">add</span><span class="o">(</span><span class="n">task</span><span class="o">);</span><span class="c1">//使用用的DelayedWorkQueue</span>
+<span class="c1">//如果当前状态无法执行任务，则取消</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">isShutdown</span><span class="o">()</span> <span class="o">&amp;&amp;</span>
+            <span class="o">!</span><span class="n">canRunInCurrentRunState</span><span class="o">(</span><span class="n">task</span><span class="o">.</span><span class="na">isPeriodic</span><span class="o">())</span> <span class="o">&amp;&amp;</span>
+            <span class="n">remove</span><span class="o">(</span><span class="n">task</span><span class="o">))</span>
+            <span class="n">task</span><span class="o">.</span><span class="na">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">);</span>
+        <span class="k">else</span>
+<span class="c1">//这里是增加一个worker线程，避免提交的任务没有worker去执行</span>
+<span class="c1">//原因就是该类没有像ThreadPoolExecutor一样，woker满了才放入队列</span>
+          <span class="n">ensurePrestart</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div><p>DelayedWorkQueue ScheduledThreadPoolExecutor之所以要自己实现阻塞的工作队列，是因为ScheduledThreadPoolExecutor要求的工作队列有些特殊。 DelayedWorkQueue是一个基于堆的数据结构，类似于DelayQueue和PriorityQueue。在执行定时任务的时候，每个任务的执行时间都不同，所以DelayedWorkQueue的工作就是按照执行时间的升序来排列，执行时间距离当前时间越近的任务在队列的前面（注意：这里的顺序并不是绝对的，堆中的排序只保证了子节点的下次执行时间要比父节点的下次执行时间要大，而叶子节点之间并不一定是顺序的，下文中会说明）。</p><p>堆结构如下图：</p><p><img src="https://gitee.com/fwh666/fwh_images/raw/master/fwh_images/image-20210724104831530.png" alt="image-20210724104831530" style="zoom:50%;" /></p><p>可见，DelayedWorkQueue是一个基于最小堆结构的队列。堆结构可以使用数组表示，可以转换成如下的数组：</p><p><img src="https://gitee.com/fwh666/fwh_images/raw/master/fwh_images/image-20210724104844534.png" alt="image-20210724104844534" style="zoom:50%;" /></p><p>在这种结构中，可以发现有如下特性： 假设，索引值从0开始，子节点的索引值为k，父节点的索引值为p，则： 一个节点的左子节点的索引为：k = p * 2 + 1； 一个节点的右子节点的索引为：k = (p + 1) * 2； 一个节点的父节点的索引为：p = (k - 1) / 2。 为什么要使用DelayedWorkQueue呢？ 定时任务执行时需要取出最近要执行的任务，所以任务在队列中每次出队时一定要是当前队列中执行时间最靠前的，所以自然要使用优先级队列。 DelayedWorkQueue是一个优先级队列，它可以保证每次出队的任务都是当前队列中执行时间最靠前的，由于它是基于堆结构的队列，堆结构在执行插入和删除操作时的最坏时间复杂度是 O(logN)。</p><h3 id="delayedworkqueue属性">DelayedWorkQueue属性</h3><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 队列初始容量</span>
+<span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">INITIAL_CAPACITY</span> <span class="o">=</span> <span class="mi">16</span><span class="o">;</span>
+<span class="c1">// 根据初始容量创建RunnableScheduledFuture类型的数组</span>
+<span class="kd">private</span> <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;[]</span> <span class="n">queue</span> <span class="o">=</span>
+    <span class="k">new</span> <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;[</span><span class="n">INITIAL_CAPACITY</span><span class="o">];</span>
+<span class="kd">private</span> <span class="kd">final</span> <span class="n">ReentrantLock</span> <span class="n">lock</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ReentrantLock</span><span class="o">();</span>
+<span class="kd">private</span> <span class="kt">int</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+<span class="c1">// leader线程</span>
+<span class="kd">private</span> <span class="n">Thread</span> <span class="n">leader</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+<span class="c1">// 当较新的任务在队列的头部可用时，或者新线程可能需要成为leader，则通过该条件发出信号</span>
+<span class="kd">private</span> <span class="kd">final</span> <span class="n">Condition</span> <span class="n">available</span> <span class="o">=</span> <span class="n">lock</span><span class="o">.</span><span class="na">newCondition</span><span class="o">();</span>
+</code></pre></div></div><p>注意这里的leader，它是Leader-Follower模式的变体，用于减少不必要的定时等待。什么意思呢？对于多线程的网络模型来说： 所有线程会有三种身份中的一种：leader和follower，以及一个干活中的状态：proccesser。它的基本原则就是，永远最多只有一个leader。而所有follower都在等待成为leader。线程池启动时会自动产生一个Leader负责等待网络IO事件，当有一个事件产生时，Leader线程首先通知一个Follower线程将其提拔为新的Leader，然后自己就去干活了，去处理这个网络事件，处理完毕后加入Follower线程等待队列，等待下次成为Leader。这种方法可以增强CPU高速缓存相似性，及消除动态内存分配和线程间的数据交换。</p><h3 id="offer方法">offer方法</h3><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">offer</span><span class="o">(</span><span class="n">Runnable</span> <span class="n">x</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">//参数校验</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nf">NullPointerException</span><span class="o">();</span>
+    <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">e</span> <span class="o">=</span> <span class="o">(</span><span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;)</span><span class="n">x</span><span class="o">;</span>
+    <span class="kd">final</span> <span class="n">ReentrantLock</span> <span class="n">lock</span> <span class="o">=</span> <span class="k">this</span><span class="o">.</span><span class="na">lock</span><span class="o">;</span>
+    <span class="n">lock</span><span class="o">.</span><span class="na">lock</span><span class="o">();</span>
+    <span class="k">try</span> <span class="o">{</span>
+<span class="c1">//查看当前元素数量，如果大于队列长度则进行扩容</span>
+        <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">size</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">i</span> <span class="o">&gt;=</span> <span class="n">queue</span><span class="o">.</span><span class="na">length</span><span class="o">)</span>
+            <span class="n">grow</span><span class="o">();</span>
+<span class="c1">//元素数量加1</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+<span class="c1">//如果当前队列还没有元素，则直接加入头部</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">queue</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span> <span class="o">=</span> <span class="n">e</span><span class="o">;</span>
+<span class="c1">//记录索引</span>
+            <span class="n">setIndex</span><span class="o">(</span><span class="n">e</span><span class="o">,</span> <span class="mi">0</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+ <span class="c1">//把任务加入堆中，并调整堆结构，这里就会根据任务的触发时间排列</span>
+             <span class="c1">//把需要最早执行的任务放在前面</span>
+            <span class="n">siftUp</span><span class="o">(</span><span class="n">i</span><span class="o">,</span> <span class="n">e</span><span class="o">);</span>
+        <span class="o">}</span>
+<span class="c1">//如果新加入的元素就是队列头，这里有两种情况</span>
+        <span class="c1">//1.这是用户提交的第一个任务</span>
+        <span class="c1">//2.新任务进行堆调整以后，排在队列头</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">queue</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span> <span class="o">==</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">// leader设置为null为了使在take方法中的线程在通过available.signal();后会执行available.awaitNanos(delay);</span>
+            <span class="n">leader</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+<span class="c1">//加入元素以后，唤醒worker线程</span>
+            <span class="n">available</span><span class="o">.</span><span class="na">signal</span><span class="o">();</span>
+        <span class="o">}</span>
+    <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+        <span class="n">lock</span><span class="o">.</span><span class="na">unlock</span><span class="o">();</span>
+    <span class="o">}</span>
+    <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
+<span class="o">}</span>
+
+<span class="err">任务排序</span><span class="n">sift</span><span class="err">方法</span>
+<span class="kd">private</span> <span class="kt">void</span> <span class="nf">siftUp</span><span class="o">(</span><span class="kt">int</span> <span class="n">k</span><span class="o">,</span> <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">key</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">// 找到父节点的索引</span>
+<span class="k">while</span> <span class="o">(</span><span class="n">k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
+  <span class="c1">// 获取父节点</span>
+        <span class="kt">int</span> <span class="n">parent</span> <span class="o">=</span> <span class="o">(</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="o">)</span> <span class="o">&gt;&gt;&gt;</span> <span class="mi">1</span><span class="o">;</span>
+        <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">e</span> <span class="o">=</span> <span class="n">queue</span><span class="o">[</span><span class="n">parent</span><span class="o">];</span>
+  <span class="c1">// 如果key节点的执行时间大于父节点的执行时间，不需要再排序了</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">key</span><span class="o">.</span><span class="na">compareTo</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="k">break</span><span class="o">;</span>
+ <span class="c1">// 如果key.compareTo(e) &lt; 0，说明key节点的执行时间小于父节点的执行时间，需要把父节点移到后面</span>
+        <span class="n">queue</span><span class="o">[</span><span class="n">k</span><span class="o">]</span> <span class="o">=</span> <span class="n">e</span><span class="o">;</span>
+        <span class="n">setIndex</span><span class="o">(</span><span class="n">e</span><span class="o">,</span> <span class="n">k</span><span class="o">);</span>
+<span class="c1">// 设置索引为k</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">parent</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="c1">// key设置为排序后的位置中</span>
+    <span class="n">queue</span><span class="o">[</span><span class="n">k</span><span class="o">]</span> <span class="o">=</span> <span class="n">key</span><span class="o">;</span>
+    <span class="n">setIndex</span><span class="o">(</span><span class="n">key</span><span class="o">,</span> <span class="n">k</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div><p>代码很好理解，就是循环的根据key节点与它的父节点来判断，如果key节点的执行时间小于父节点，则将两个节点交换，使执行时间靠前的节点排列在队列的前面。 假设新入队的节点的延迟时间（调用getDelay()方法获得）是5，执行过程如下： 先将新的节点添加到数组的尾部，这时新节点的索引k为7：</p><p>计算新父节点的索引：parent = (k - 1) »&gt; 1，parent = 3，那么queue[3]的时间间隔值为8，因为 5 &lt; 8 ，将执行queue[7] = queue[3]：</p><p>这时将k设置为3，继续循环，再次计算parent为1，queue[1]的时间间隔为3，因为 5 &gt; 3 ，这时退出循环，最终k为3：</p><p>可见，每次新增节点时，只是根据父节点来判断，而不会影响兄弟节点。</p><h3 id="take方法">take方法</h3><div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public RunnableScheduledFuture&lt;?&gt; take() throws InterruptedException {
+    final ReentrantLock lock = this.lock;
+    lock.lockInterruptibly();
+    try {
+        for (;;) {
+            RunnableScheduledFuture&lt;?&gt; first = queue[0];
+            if (first == null)
+                available.await();
+            else {
+// 计算当前时间到执行时间的时间间隔
+                long delay = first.getDelay(NANOSECONDS);
+                if (delay &lt;= 0)
+                    return finishPoll(first);
+                first = null; // don't retain ref while waiting
+                // leader不为空，阻塞线程
+if (leader != null)
+                    available.await();
+                else {
+                    // leader为空，则把leader设置为当前线程，
+Thread thisThread = Thread.currentThread();
+                    leader = thisThread;
+                    try {
+                       // 阻塞到执行时间 
+available.awaitNanos(delay);
+                    } finally {
+// 设置leader = null，让其他线程执行available.awaitNanos(delay);
+                        if (leader == thisThread)
+                            leader = null;
+                    }
+                }
+            }
+        }
+    } finally {
+// 如果leader不为空，则说明leader的线程正在执行available.awaitNanos(delay);
+        // 如果queue[0] == null，说明队列为空
+        if (leader == null &amp;&amp; queue[0] != null)
+            available.signal();
+        lock.unlock();
+    }
+}
+</code></pre></div></div><p>take方法是什么时候调用的呢？在ThreadPoolExecutor中，介绍了getTask方法，工作线程会循环地从workQueue中取任务。但定时任务却不同，因为如果一旦getTask方法取出了任务就开始执行了，而这时可能还没有到执行的时间，所以在take方法中，要保证只有在到指定的执行时间的时候任务才可以被取走。 再来说一下leader的作用，这里的leader是为了减少不必要的定时等待，当一个线程成为leader时，它只等待下一个节点的时间间隔，但其它线程无限期等待。 leader线程必须在从take（）或poll（）返回之前signal其它线程，除非其他线程成为了leader。 举例来说，如果没有leader，那么在执行take时，都要执行available.awaitNanos(delay)，假设当前线程执行了该段代码，这时还没有signal，第二个线程也执行了该段代码，则第二个线程也要被阻塞。多个这时执行该段代码是没有作用的，因为只能有一个线程会从take中返回queue[0]（因为有lock），其他线程这时再返回for循环执行时取的queue[0]，已经不是之前的queue[0]了，然后又要继续阻塞。 所以，为了不让多个线程频繁的做无用的定时等待，这里增加了leader，如果leader不为空，则说明队列中第一个节点已经在等待出队，这时其它的线程会一直阻塞，减少了无用的阻塞（注意，在finally中调用了signal()来唤醒一个线程，而不是signalAll()）。</p><h3 id="poll-方法">poll 方法</h3><p>下面看下poll方法，与take类似，但这里要提供超时功能：</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">poll</span><span class="o">(</span><span class="kt">long</span> <span class="n">timeout</span><span class="o">,</span> <span class="n">TimeUnit</span> <span class="n">unit</span><span class="o">)</span>
+    <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
+    <span class="kt">long</span> <span class="n">nanos</span> <span class="o">=</span> <span class="n">unit</span><span class="o">.</span><span class="na">toNanos</span><span class="o">(</span><span class="n">timeout</span><span class="o">);</span>
+    <span class="kd">final</span> <span class="n">ReentrantLock</span> <span class="n">lock</span> <span class="o">=</span> <span class="k">this</span><span class="o">.</span><span class="na">lock</span><span class="o">;</span>
+    <span class="n">lock</span><span class="o">.</span><span class="na">lockInterruptibly</span><span class="o">();</span>
+    <span class="k">try</span> <span class="o">{</span>
+        <span class="k">for</span> <span class="o">(;;)</span> <span class="o">{</span>
+            <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">first</span> <span class="o">=</span> <span class="n">queue</span><span class="o">[</span><span class="mi">0</span><span class="o">];</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">first</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">nanos</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span>
+                    <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+                <span class="k">else</span>
+                    <span class="n">nanos</span> <span class="o">=</span> <span class="n">available</span><span class="o">.</span><span class="na">awaitNanos</span><span class="o">(</span><span class="n">nanos</span><span class="o">);</span>
+            <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+                <span class="kt">long</span> <span class="n">delay</span> <span class="o">=</span> <span class="n">first</span><span class="o">.</span><span class="na">getDelay</span><span class="o">(</span><span class="n">NANOSECONDS</span><span class="o">);</span>
+<span class="c1">// 如果delay &lt;= 0，说明已经到了任务执行的时间，返回。</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">delay</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span>
+                    <span class="k">return</span> <span class="nf">finishPoll</span><span class="o">(</span><span class="n">first</span><span class="o">);</span>
+<span class="c1">// 如果nanos &lt;= 0，说明已经超时，返回null</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">nanos</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span>
+                    <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+                <span class="n">first</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span> <span class="c1">// don't retain ref while waiting</span>
+  <span class="c1">// nanos &lt; delay 说明需要等待的时间小于任务要执行的延迟时间</span>
+                <span class="c1">// leader != null 说明有其它线程正在对任务进行阻塞</span>
+                <span class="c1">// 这时阻塞当前线程nanos纳秒</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">nanos</span> <span class="o">&lt;</span> <span class="n">delay</span> <span class="o">||</span> <span class="n">leader</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span>
+                    <span class="n">nanos</span> <span class="o">=</span> <span class="n">available</span><span class="o">.</span><span class="na">awaitNanos</span><span class="o">(</span><span class="n">nanos</span><span class="o">);</span>
+                <span class="k">else</span> <span class="o">{</span>
+                    <span class="n">Thread</span> <span class="n">thisThread</span> <span class="o">=</span> <span class="n">Thread</span><span class="o">.</span><span class="na">currentThread</span><span class="o">();</span>
+                    <span class="n">leader</span> <span class="o">=</span> <span class="n">thisThread</span><span class="o">;</span>
+                    <span class="k">try</span> <span class="o">{</span>
+<span class="c1">// 这里的timeLeft表示delay减去实际的等待时间</span>
+                        <span class="kt">long</span> <span class="n">timeLeft</span> <span class="o">=</span> <span class="n">available</span><span class="o">.</span><span class="na">awaitNanos</span><span class="o">(</span><span class="n">delay</span><span class="o">);</span>
+                       <span class="c1">// 计算剩余的等待时间 </span>
+<span class="n">nanos</span> <span class="o">-=</span> <span class="n">delay</span> <span class="o">-</span> <span class="n">timeLeft</span><span class="o">;</span>
+                    <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+                        <span class="k">if</span> <span class="o">(</span><span class="n">leader</span> <span class="o">==</span> <span class="n">thisThread</span><span class="o">)</span>
+                            <span class="n">leader</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">leader</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">queue</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span>
+            <span class="n">available</span><span class="o">.</span><span class="na">signal</span><span class="o">();</span>
+        <span class="n">lock</span><span class="o">.</span><span class="na">unlock</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div><h3 id="finishpoll方法">finishPoll方法</h3><p>当调用了take或者poll方法能够获取到任务时，会调用该方法进行返回：</p><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">private</span> <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">finishPoll</span><span class="o">(</span><span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">f</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">// 数组长度-1</span>
+    <span class="kt">int</span> <span class="n">s</span> <span class="o">=</span> <span class="o">--</span><span class="n">size</span><span class="o">;</span>
+<span class="c1">// 取出最后一个节点</span>
+    <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">x</span> <span class="o">=</span> <span class="n">queue</span><span class="o">[</span><span class="n">s</span><span class="o">];</span>
+    <span class="n">queue</span><span class="o">[</span><span class="n">s</span><span class="o">]</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+<span class="c1">// 长度不为0，则从第一个元素开始排序，目的是要把最后一个节点放到合适的位置上</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">s</span> <span class="o">!=</span> <span class="mi">0</span><span class="o">)</span>
+        <span class="n">siftDown</span><span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="n">x</span><span class="o">);</span>
+    <span class="n">setIndex</span><span class="o">(</span><span class="n">f</span><span class="o">,</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+    <span class="k">return</span> <span class="n">f</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div><h3 id="siftdown方法">siftDown方法</h3><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">siftDown</span><span class="err">方法使堆从</span><span class="n">k</span><span class="err">开始向下调整：</span>
+<span class="kd">private</span> <span class="kt">void</span> <span class="nf">siftDown</span><span class="o">(</span><span class="kt">int</span> <span class="n">k</span><span class="o">,</span> <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">key</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">// 根据二叉树的特性，数组长度除以2，表示取有子节点的索引</span>
+    <span class="kt">int</span> <span class="n">half</span> <span class="o">=</span> <span class="n">size</span> <span class="o">&gt;&gt;&gt;</span> <span class="mi">1</span><span class="o">;</span>
+<span class="c1">// 判断索引为k的节点是否有子节点</span>
+    <span class="k">while</span> <span class="o">(</span><span class="n">k</span> <span class="o">&lt;</span> <span class="n">half</span><span class="o">)</span> <span class="o">{</span>
+<span class="c1">// 左子节点的索引</span>
+        <span class="kt">int</span> <span class="n">child</span> <span class="o">=</span> <span class="o">(</span><span class="n">k</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span><span class="o">)</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+        <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">c</span> <span class="o">=</span> <span class="n">queue</span><span class="o">[</span><span class="n">child</span><span class="o">];</span>
+<span class="c1">// 右子节点的索引</span>
+        <span class="kt">int</span> <span class="n">right</span> <span class="o">=</span> <span class="n">child</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+<span class="c1">// 如果有右子节点并且左子节点的时间间隔大于右子节点，取时间间隔最小的节点</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">right</span> <span class="o">&lt;</span> <span class="n">size</span> <span class="o">&amp;&amp;</span> <span class="n">c</span><span class="o">.</span><span class="na">compareTo</span><span class="o">(</span><span class="n">queue</span><span class="o">[</span><span class="n">right</span><span class="o">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">queue</span><span class="o">[</span><span class="n">child</span> <span class="o">=</span> <span class="n">right</span><span class="o">];</span>
+<span class="c1">// 如果key的时间间隔小于等于c的时间间隔，跳出循环</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">key</span><span class="o">.</span><span class="na">compareTo</span><span class="o">(</span><span class="n">c</span><span class="o">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="k">break</span><span class="o">;</span>
+<span class="c1">// 设置要移除索引的节点为其子节点</span>
+        <span class="n">queue</span><span class="o">[</span><span class="n">k</span><span class="o">]</span> <span class="o">=</span> <span class="n">c</span><span class="o">;</span>
+        <span class="n">setIndex</span><span class="o">(</span><span class="n">c</span><span class="o">,</span> <span class="n">k</span><span class="o">);</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">child</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="c1">// 将key放入索引为k的位置</span>
+    <span class="n">queue</span><span class="o">[</span><span class="n">k</span><span class="o">]</span> <span class="o">=</span> <span class="n">key</span><span class="o">;</span>
+    <span class="n">setIndex</span><span class="o">(</span><span class="n">key</span><span class="o">,</span> <span class="n">k</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div><p>siftDown方法执行时包含两种情况，一种是没有子节点，一种是有子节点（根据half判断）。例如： 没有子节点的情况： 假设初始的堆如下：</p><p>假设 k = 3 ，那么 k = half ，没有子节点，在执行siftDown方法时直接把索引为3的节点设置为数组的最后一个节点：</p><p>有子节点的情况： 假设 k = 0 ，那么执行以下步骤： 1、获取左子节点，child = 1 ，获取右子节点， right = 2 ：</p><p>2、由于 right &lt; size ，这时比较左子节点和右子节点时间间隔的大小，这里 3 &lt; 7 ，所以 c = queue[child] ； 3、比较key的时间间隔是否小于c的时间间隔，这里不满足，继续执行，把索引为k的节点设置为c，然后将k设置为child；</p><p>4、因为 half = 3 ，k = 1 ，继续执行循环，这时的索引变为：</p><p>5、这时再经过如上判断后，将k的值为3，最终的结果如下：</p><p>6、最后，如果在finishPoll方法中调用的话，会把索引为0的节点的索引设置为-1，表示已经删除了该节点，并且size也减了1，最后的结果如下：</p><p>可见，siftdown方法在执行完并不是有序的，但可以发现，子节点的下次执行时间一定比父节点的下次执行时间要大，由于每次都会取左子节点和右子节点中下次执行时间最小的节点，所以还是可以保证在take和poll时出队是有序的。</p><h3 id="remove方法">remove方法</h3><div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">remove</span><span class="o">(</span><span class="n">Object</span> <span class="n">x</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kd">final</span> <span class="n">ReentrantLock</span> <span class="n">lock</span> <span class="o">=</span> <span class="k">this</span><span class="o">.</span><span class="na">lock</span><span class="o">;</span>
+    <span class="n">lock</span><span class="o">.</span><span class="na">lock</span><span class="o">();</span>
+    <span class="k">try</span> <span class="o">{</span>
+        <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">indexOf</span><span class="o">(</span><span class="n">x</span><span class="o">);</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">setIndex</span><span class="o">(</span><span class="n">queue</span><span class="o">[</span><span class="n">i</span><span class="o">],</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+    <span class="kt">int</span> <span class="n">s</span> <span class="o">=</span> <span class="o">--</span><span class="n">size</span><span class="o">;</span>
+    <span class="n">RunnableScheduledFuture</span><span class="o">&lt;?&gt;</span> <span class="n">replacement</span> <span class="o">=</span> <span class="n">queue</span><span class="o">[</span><span class="n">s</span><span class="o">];</span>
+    <span class="n">queue</span><span class="o">[</span><span class="n">s</span><span class="o">]</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">s</span> <span class="o">!=</span> <span class="n">i</span><span class="o">)</span> <span class="o">{</span>
+        <span class="c1">// 从i开始向下调整</span>
+            <span class="n">siftDown</span><span class="o">(</span><span class="n">i</span><span class="o">,</span> <span class="n">replacement</span><span class="o">);</span>
+ <span class="c1">// 如果queue[i] == replacement，说明i是叶子节点</span>
+            <span class="c1">// 如果是这种情况，不能保证子节点的下次执行时间比父节点的大</span>
+            <span class="c1">// 这时需要进行一次向上调整</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">queue</span><span class="o">[</span><span class="n">i</span><span class="o">]</span> <span class="o">==</span> <span class="n">replacement</span><span class="o">)</span>
+                <span class="n">siftUp</span><span class="o">(</span><span class="n">i</span><span class="o">,</span> <span class="n">replacement</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
+    <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+        <span class="n">lock</span><span class="o">.</span><span class="na">unlock</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div><p>假设初始的堆结构如下：</p><p>这时要删除8的节点，那么这时 k = 1，key为最后一个节点：</p><p>这时通过上文对siftDown方法的分析，siftDown方法执行后的结果如下：</p><p>这时会发现，最后一个节点的值比父节点还要小，所以这里要执行一次siftUp方法来保证子节点的下次执行时间要比父节点的大，所以最终结果如下：</p><h2 id="总结">总结</h2><p>主要总结为以下几个方面：</p><p>与Timer执行定时任务的比较，相比Timer，ScheduedThreadPoolExecutor有什么优点；</p><ul><li>ScheduledThreadPoolExecutor继承自ThreadPoolExecutor，所以它也是一个线程池，也有coorPoolSize和workQueue，</li><li>ScheduledThreadPoolExecutor特殊的地方在于，自己实现了优先工作队列DelayedWorkQueue；</li><li>ScheduedThreadPoolExecutor实现了ScheduledExecutorService，所以就有了任务调度的方法，如schedule，</li><li>scheduleAtFixedRate和scheduleWithFixedDelay，同时注意他们之间的区别；</li><li>内部类ScheduledFutureTask继承自FutureTask，实现了任务的异步执行并且可以获取返回结果。同时也实现了Delayed接口，可以通过getDelay方法获取将要执行的时间间隔；</li><li>周期任务的执行其实是调用了FutureTask类中的runAndReset方法，每次执行完不设置结果和状态。</li><li>详细分析了DelayedWorkQueue的数据结构，它是一个基于最小堆结构的优先队列，并且每次出队时能够保证取出的任务是当前队列中下次执行时间最小的任务。同时注意一下优先队列中堆的顺序，堆中的顺序并不是绝对的，但要保证子节点的值要比父节点的值要大，这样就不会影响出队的顺序。</li><li>总体来说，ScheduedThreadPoolExecutor的重点是要理解下次执行时间的计算，以及优先队列的出队、入队和删除的过程，这两个是理解ScheduedThreadPoolExecutor的关键。</li></ul><div style="margin-top:2em;padding:0 1.5em;border:1px solid #d3d3d3;background-color:#deebf7"><h3>文档信息</h3><ul><li>本文作者：<a href="http://localhost:4000" target="_blank">WenHao</a></li><li>本文链接：<a href="http://localhost:4000/2020/07/11/ScheduleThread/" target="_blank">http://localhost:4000/2020/07/11/ScheduleThread/</a></li><li>版权声明：自由转载-非商用-非衍生-保持署名（<a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh" target="_blank">创意共享3.0许可证</a>）</li></ul></div></article></div><div class="share"><div class="share-component"></div></div><div class="comment"><div id="gitalk-container"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.css"> <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script> <script> var gitalk = new Gitalk({ id: '/2020/07/11/ScheduleThread/', clientID: '374dc655164bd1e55131', clientSecret: 'cb138e56989989bbb062560782a89bb048c50f58', repo: 'blog-comments', owner: 'wenhaoclub', admin: ['wenhaoclub'], labels: ['gitment'], perPage: 50, }); gitalk.render('gitalk-container'); </script></div></div><div class="column one-fourth"><h3>Search</h3><div id="site_search"> <input style="width:96%" type="text" id="search_box" placeholder="Search"></div><ul id="search_results" style="font-size:14px;list-style-type:none;padding-top:10px;padding-left:10px;"></ul><script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/simple-jekyll-search.min.js"></script> <script type="text/javascript"> SimpleJekyllSearch({ searchInput: document.getElementById('search_box'), resultsContainer: document.getElementById('search_results'), json: 'http://localhost:4000/assets/search_data.json', searchResultTemplate: '<li><a href="{url}" title="{desc}">{title}</a></li>', noResultsText: 'No results found', limit: 10, fuzzy: false, exclude: ['Welcome'] }) </script><h3 class="post-directory-title mobile-hidden">Table of Contents</h3><div id="post-directory-module" class="mobile-hidden"><section class="post-directory"><dl></dl></section></div><script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/jquery.toc.js"></script></div></div></section><footer class="container"><div class="site-footer" role="contentinfo"><div class="copyright left mobile-block"> © 2018 <span title="WenHao">WenHao</span> <a href="javascript:window.scrollTo(0,0)" class="right mobile-visible">TOP</a></div><ul class="site-footer-links right mobile-hidden"><li> <a href="javascript:window.scrollTo(0,0)" >TOP</a></li></ul><a href="http://github.com/wenhaoclub/wenhaoclub.github.io" target="_blank" aria-label="view source code"> <span class="mega-octicon octicon-mark-github" title="GitHub"></span> </a><ul class="site-footer-links mobile-hidden"><li> <a href="http://localhost:4000/" title="首页" target="">首页</a></li><li> <a href="http://localhost:4000/categories/" title="分类" target="">分类</a></li><li> <a href="http://localhost:4000/archives/" title="归档" target="">归档</a></li><li> <a href="http://localhost:4000/wiki/" title="维基" target="">维基</a></li><li> <a href="http://localhost:4000/links/" title="链接" target="">链接</a></li><li> <a href="http://localhost:4000/about/" title="关于" target="">关于</a></li><li><a href="http://localhost:4000/feed.xml"><span class="octicon octicon-rss" style="color:orange;"></span></a></li></ul><script async src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/busuanzi/2.3/busuanzi.pure.mini.js"></script><div class="mobile-hidden" style="margin-top:8px"> <span id="busuanzi_container_site_pv" style="display:none"> 本站访问量<span id="busuanzi_value_site_pv"></span>次 </span> <span id="busuanzi_container_site_uv" style="display:none"> / 本站访客数<span id="busuanzi_value_site_uv"></span>人 </span> <span id="busuanzi_container_page_pv" style="display:none"> / 本页访问量<span id="busuanzi_value_page_pv"></span>次 / 统计始于2018-05-01 </span></div><script type="text/javascript">document.write(unescape("%3Cspan id='cnzz_stat_icon_1279012287'%3E%3C/span%3E%3Cscript src='https://s9.cnzz.com/stat.php%3Fid%3D1279012287%26show%3Dpic' type='text/javascript'%3E%3C/script%3E"));</script> &nbsp &nbsp &nbsp <a href="http://beian.miit.gov.cn" target="_blank">京ICP备2020034168号-1</a> &nbsp &nbsp &nbsp <a href="http://www.beian.gov.cn/portal/registerSystemInfo" target="_blank">京公网安备11010502042362号</a></div></footer><div class="tools-wrapper"> <a class="gotop" href="#" title="回到顶部"><span class="octicon octicon-arrow-up"></span></a></div><script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/share.js/dist/js/share.min.js"></script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/geopattern.js"></script> <script> jQuery(document).ready(function($) { $('.geopattern').each(function(){ $(this).geopattern($(this).data('pattern-id')); }); /* hljs.initHighlightingOnLoad(); */ }); </script><div style="display:none"> <script> (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o), m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m) })(window,document,'script','https://www.google-analytics.com/analytics.js','ga'); ga('create', 'UA-80669434-1', 'auto'); ga('send', 'pageview'); </script></div></body></html>

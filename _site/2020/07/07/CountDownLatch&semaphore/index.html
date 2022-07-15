@@ -1,0 +1,146 @@
+<!DOCTYPE html><html lang="zh-cmn-Hans" prefix="og: http://ogp.me/ns#" class="han-init"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><title>并发编程(七)-并发编程之CountDownLatch&Semaphore应用与原理 &mdash; 文浩</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/primer-css/css/primer.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/primer-markdown/dist/user-content.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/components/collection.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/components/repo-card.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/sections/repo-list.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/components/boxed-group.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/globals/common.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/globals/responsive.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/css/posts/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/octicons/octicons/octicons.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/share.js/dist/css/share.min.css"><link rel="canonical" href="http://localhost:4000/2020/07/07/CountDownLatch&semaphore/"><link rel="alternate" type="application/atom+xml" title="文浩" href="http://localhost:4000/feed.xml"><link rel="shortcut icon" href="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/favicon.ico"><meta property="og:title" content="并发编程(七)-并发编程之CountDownLatch&Semaphore应用与原理"><meta name="keywords" content="wenhao , 文浩 , 似水似流年 , wenhaoclub , fuwenhao.club , 文浩的博客"><meta name="og:keywords" content="wenhao , 文浩 , 似水似流年 , wenhaoclub , fuwenhao.club , 文浩的博客"><meta name="description" content="Semaphore 是什么？"><meta name="og:description" content="Semaphore 是什么？"><meta property="og:url" content="http://localhost:4000/2020/07/07/CountDownLatch&semaphore/"><meta property="og:site_name" content="文浩"><meta property="og:type" content="article"><meta property="og:locale" content="zh_CN" /><meta property="article:published_time" content="2020-07-07"> <script>(function(i,s,o,g,r,a,m){i["DaoVoiceObject"]=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,"script","https://cdn.jsdelivr.net/gh/wenhaoclub/blog-assets/files/js/84f024a1.js","daovoice"); daovoice('init', { app_id: "84f024a1" }); daovoice('update'); </script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/jquery/dist/jquery.min.js"></script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/jquery-ui.js"></script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/main.js"></script></head><body class="" data-mz=""><header class="site-header"><div class="container"><h1><a href="http://localhost:4000/" title="文浩"><span class="octicon octicon-mark-github"></span> 文浩</a></h1><button class="collapsed mobile-visible" type="button" onclick="toggleMenu();"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button><nav class="site-header-nav" role="navigation"> <a href="http://localhost:4000/" class=" site-header-nav-item" target="" title="首页">首页</a> <a href="http://localhost:4000/categories/" class=" site-header-nav-item" target="" title="分类">分类</a> <a href="http://localhost:4000/archives/" class=" site-header-nav-item" target="" title="归档">归档</a> <a href="http://localhost:4000/wiki/" class=" site-header-nav-item" target="" title="维基">维基</a> <a href="http://localhost:4000/links/" class=" site-header-nav-item" target="" title="链接">链接</a> <a href="http://localhost:4000/about/" class=" site-header-nav-item" target="" title="关于">关于</a></nav></div></header><section class="collection-head small geopattern" data-pattern-id="并发编程(七)-并发编程之Co"><div class="container"><div class="columns"><div class="column three-fourths"><div class="collection-title"><h1 class="collection-header">并发编程(七)-并发编程之CountDownLatch&Semaphore应用与原理</h1><div class="collection-info"> <span class="meta-info"> <span class="octicon octicon-calendar"></span> 2020/07/07 </span> <span class="meta-info"> <span class="octicon octicon-file-directory"></span> <a href="http://localhost:4000/categories/#并发" title="并发">并发</a> </span> <span class="meta-info"> <span class="octicon octicon-clock"></span> 共 5134 字，约 15 分钟 </span></div></div></div><div class="column one-fourths mobile-hidden"><div class="collection-title"></div></div></div></div></section><section class="container content"><div class="columns"><div class="column three-fourths" ><div><article class="article-content markdown-body"><h1 id="semaphore-是什么">Semaphore 是什么？</h1><p>Semaphore 字面意思是信号量的意思，它的作用是控制访问特定资源的线程数目，底层依赖AQS的状态State，是在生产当中比较常用的一个工具类。</p><h1 id="怎么使用-semaphore">怎么使用 Semaphore？</h1><h2 id="21-构造方法">2.1 构造方法</h2><p>public Semaphore(int permits) public Semaphore(int permits, boolean fair)</p><p>permits 表示许可线程的数量 fair 表示公平性，如果这个设为 true 的话，下次执行的线程会是等待最久的线程</p><h2 id="22-重要方法">2.2 重要方法</h2><p>public void acquire() throws InterruptedException public void release() tryAcquire（int args,long timeout, TimeUnit unit）</p><p>acquire() 表示阻塞并获取许可 release() 表示释放许可</p><h2 id="23-基本使用">2.3 基本使用</h2><p>2.3.1 需求场景 资源访问，服务限流(Hystrix里限流就有基于信号量方式)。 2.3.2 代码实现</p><pre><code class="language-Java">public class SemaphoreRunner {
+    public static void main(String[] args) {
+        Semaphore semaphore = new Semaphore(2);
+        for (int i=0;i&lt;5;i++){
+            new Thread(new Task(semaphore,"yangguo+"+i)).start();
+        }
+    }
+static class Task extends Thread{
+    Semaphore semaphore;
+
+    public Task(Semaphore semaphore,String tname){
+        this.semaphore = semaphore;
+        this.setName(tname);
+    }
+
+    public void run() {
+        try {
+            semaphore.acquire();               
+            System.out.println(Thread.currentThread().getName()+":aquire() at time:"+System.currentTimeMillis());
+            Thread.sleep(1000);
+            semaphore.release();               
+            System.out.println(Thread.currentThread().getName()+":aquire() at time:"+System.currentTimeMillis());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+}
+</code></pre><p>}</p><p>打印结果： Thread-3:aquire() at time:1563096128901 Thread-1:aquire() at time:1563096128901 Thread-1:aquire() at time:1563096129903 Thread-7:aquire() at time:1563096129903 Thread-5:aquire() at time:1563096129903 Thread-3:aquire() at time:1563096129903 Thread-7:aquire() at time:1563096130903 Thread-5:aquire() at time:1563096130903 Thread-9:aquire() at time:1563096130903 Thread-9:aquire() at time:1563096131903</p><p>从打印结果可以看出，一次只有两个线程执行 acquire()，只有线程进行 release() 方法后才会有别的线程执行 acquire()。</p><h1 id="countdownlatch使用及应用场景例子">CountDownLatch使用及应用场景例子</h1><h2 id="countdownlatch是什么">CountDownLatch是什么？</h2><p>CountDownLatch这个类能够使一个线程等待其他线程完成各自的工作后再执行。例如，应用程序的主线程希望在负责启动框架服务的线程已经启动所有的框架服务之后再执行。 使用场景： Zookeeper分布式锁,Jmeter模拟高并发等</p><h2 id="countdownlatch如何工作">CountDownLatch如何工作？</h2><p>CountDownLatch是通过一个计数器来实现的，计数器的初始值为线程的数量。每当一个线程完成了自己的任务后，计数器的值就会减1。当计数器值到达0时，它表示所有的线程已经完成了任务，然后在闭锁上等待的线程就可以恢复执行任务。 API CountDownLatch.countDown() CountDownLatch.await();</p><h2 id="countdownlatch应用场景例子">CountDownLatch应用场景例子</h2><p>比如陪媳妇去看病。 医院里边排队的人很多，如果一个人的话，要先看大夫，看完大夫再去排队交钱取药。 现在我们是双核，可以同时做这两个事（多线程）。 假设看大夫花3秒钟，排队交费取药花5秒钟。我们同时搞的话，5秒钟我们就能完成，然后一起回家（回到主线程）。 代码如下：</p><pre><code class="language-Java">/**
+
+ * 看大夫任务
+   */
+   public class SeeDoctorTask implements Runnable {
+   private CountDownLatch countDownLatch;
+
+   public SeeDoctorTask(CountDownLatch countDownLatch){
+       this.countDownLatch = countDownLatch;
+   }
+
+   public void run() {
+       try {
+           System.out.println("开始看医生");
+           Thread.sleep(3000);
+           System.out.println("看医生结束，准备离开病房");
+       } catch (InterruptedException e) {
+           e.printStackTrace();
+       }finally {
+           if (countDownLatch != null)
+               countDownLatch.countDown();
+       }
+   }
+
+}
+/**
+
+ * 排队的任务
+   */
+   public class QueueTask implements Runnable {
+
+   private CountDownLatch countDownLatch;
+
+   public QueueTask(CountDownLatch countDownLatch){
+       this.countDownLatch = countDownLatch;
+   }
+   public void run() {
+       try {
+           System.out.println("开始在医院药房排队买药....");
+           Thread.sleep(5000);
+           System.out.println("排队成功，可以开始缴费买药");
+       } catch (InterruptedException e) {
+           e.printStackTrace();
+       }finally {
+           if (countDownLatch != null)
+               countDownLatch.countDown();
+       }
+   }
+   }
+
+ * 
+/**
+
+ * 配媳妇去看病，轮到媳妇看大夫时
+
+ * 我就开始去排队准备交钱了。
+   */
+   public class CountDownLaunchRunner {
+
+   public static void main(String[] args) throws InterruptedException {
+       long now = System.currentTimeMillis();
+       CountDownLatch countDownLatch = new CountDownLatch(2);
+new Thread(new SeeDoctorTask(countDownLatch)).start();
+new Thread(new QueueTask(countDownLatch)).start();
+//等待线程池中的2个任务执行完毕，否则一直
+countDownLatch.await();
+System.out.println("over，回家 cost:"+(System.currentTimeMillis()-now));
+</code></pre><p>} }</p><h1 id="cyclicbarrier">CyclicBarrier</h1><p>栅栏屏障，让一组线程到达一个屏障（也可以叫同步点）时被阻塞，直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续运行。 CyclicBarrier默认的构造方法是CyclicBarrier（int parties），其参数表示屏障拦截的线程数量，每个线程调用await方法告CyclicBarrier我已经到达了屏障，然后当前线程被阻塞。 API cyclicBarrier.await();</p><h2 id="应用场景">应用场景</h2><p>可以用于多线程计算数据，最后合并计算结果的场景。例如，用一个Excel保存了用户所有银行流水，每个Sheet保存一个账户近一年的每笔银行流水，现在需要统计用户的日均银行流水，先用多线程处理每个sheet里的银行流水，都执行完之后，得到每个sheet的日均银行流水，最后，再用barrierAction用这些线程的计算结果，计算出整个Excel的日均银行流水。 示例代码：</p><pre><code class="language-Java">public class CyclicBarrierRunner implements Runnable {
+    private CyclicBarrier cyclicBarrier;
+    private int index ;
+    
+public CyclicBarrierTest(CyclicBarrier cyclicBarrier, int index) {
+    this.cyclicBarrier = cyclicBarrier;
+    this.index = index;
+}
+
+public void run() {
+    try {
+        System.out.println("index: " + index);
+        index--;
+        cyclicBarrier.await();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+public static void main(String[] args) throws Exception {
+    CyclicBarrier cyclicBarrier = new CyclicBarrier(11, new Runnable() 					          {
+        public void run() {
+            System.out.println("所有特工到达屏障，准备开始执行秘密任务");
+        }
+    });
+    for (int i = 0; i &lt; 10; i++) {
+        new Thread(new CyclicBarrierTest(cyclicBarrier, i)).start();
+    }
+    cyclicBarrier.await();
+    System.out.println("全部到达屏障....");
+}
+</code></pre><p>}</p><h1 id="executors">Executors</h1><p>主要用来创建线程池，代理了线程池的创建，使得你的创建入口参数变得简单 重要方法 newCachedThreadPool创建一个可缓存线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程。 newFixedThreadPool 创建一个定长线程池，可控制线程最大并发数，超出的线程会在队列中等待。 newScheduledThreadPool 创建一个定长线程池，支持定时及周期性任务执行。 newSingleThreadExecutor 创建一个单线程化的线程池，它只会用唯一的工作线程来执行任务，保证所有任务按照指定顺序(FIFO, LIFO, 优先级)执行。</p><h1 id="exchanger">Exchanger</h1><p>当一个线程运行到exchange()方法时会阻塞，另一个线程运行到exchange()时，二者交换数据，然后执行后面的程序。 应用场景 极少，大家了解即可 public class ExchangerTest {</p><pre><code class="language-Java">public static void main(String []args) {
+    final Exchanger&lt;Integer&gt; exchanger = new Exchanger&lt;Integer&gt;();
+    for(int i = 0 ; i &lt; 10 ; i++) {
+        final Integer num = i;
+        new Thread() {
+            public void run() {
+                System.out.println("我是线程：Thread_" + this.getName() + "我的数据是：" + num);
+                try {
+                    Integer exchangeNum = exchanger.exchange(num);
+                    Thread.sleep(1000);
+                    System.out.println("我是线程：Thread_" + this.getName() + "我原先的数据为：" + num + " , 交换后的数据为：" + exchangeNum);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+    }
+}
+}
+</code></pre><div style="margin-top:2em;padding:0 1.5em;border:1px solid #d3d3d3;background-color:#deebf7"><h3>文档信息</h3><ul><li>本文作者：<a href="http://localhost:4000" target="_blank">WenHao</a></li><li>本文链接：<a href="http://localhost:4000/2020/07/07/CountDownLatch&semaphore/" target="_blank">http://localhost:4000/2020/07/07/CountDownLatch&semaphore/</a></li><li>版权声明：自由转载-非商用-非衍生-保持署名（<a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh" target="_blank">创意共享3.0许可证</a>）</li></ul></div></article></div><div class="share"><div class="share-component"></div></div><div class="comment"><div id="gitalk-container"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.css"> <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script> <script> var gitalk = new Gitalk({ id: '/2020/07/07/CountDownLatch&semaphore/', clientID: '374dc655164bd1e55131', clientSecret: 'cb138e56989989bbb062560782a89bb048c50f58', repo: 'blog-comments', owner: 'wenhaoclub', admin: ['wenhaoclub'], labels: ['gitment'], perPage: 50, }); gitalk.render('gitalk-container'); </script></div></div><div class="column one-fourth"><h3>Search</h3><div id="site_search"> <input style="width:96%" type="text" id="search_box" placeholder="Search"></div><ul id="search_results" style="font-size:14px;list-style-type:none;padding-top:10px;padding-left:10px;"></ul><script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/simple-jekyll-search.min.js"></script> <script type="text/javascript"> SimpleJekyllSearch({ searchInput: document.getElementById('search_box'), resultsContainer: document.getElementById('search_results'), json: 'http://localhost:4000/assets/search_data.json', searchResultTemplate: '<li><a href="{url}" title="{desc}">{title}</a></li>', noResultsText: 'No results found', limit: 10, fuzzy: false, exclude: ['Welcome'] }) </script><h3 class="post-directory-title mobile-hidden">Table of Contents</h3><div id="post-directory-module" class="mobile-hidden"><section class="post-directory"><dl></dl></section></div><script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/jquery.toc.js"></script></div></div></section><footer class="container"><div class="site-footer" role="contentinfo"><div class="copyright left mobile-block"> © 2018 <span title="WenHao">WenHao</span> <a href="javascript:window.scrollTo(0,0)" class="right mobile-visible">TOP</a></div><ul class="site-footer-links right mobile-hidden"><li> <a href="javascript:window.scrollTo(0,0)" >TOP</a></li></ul><a href="http://github.com/wenhaoclub/wenhaoclub.github.io" target="_blank" aria-label="view source code"> <span class="mega-octicon octicon-mark-github" title="GitHub"></span> </a><ul class="site-footer-links mobile-hidden"><li> <a href="http://localhost:4000/" title="首页" target="">首页</a></li><li> <a href="http://localhost:4000/categories/" title="分类" target="">分类</a></li><li> <a href="http://localhost:4000/archives/" title="归档" target="">归档</a></li><li> <a href="http://localhost:4000/wiki/" title="维基" target="">维基</a></li><li> <a href="http://localhost:4000/links/" title="链接" target="">链接</a></li><li> <a href="http://localhost:4000/about/" title="关于" target="">关于</a></li><li><a href="http://localhost:4000/feed.xml"><span class="octicon octicon-rss" style="color:orange;"></span></a></li></ul><script async src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/busuanzi/2.3/busuanzi.pure.mini.js"></script><div class="mobile-hidden" style="margin-top:8px"> <span id="busuanzi_container_site_pv" style="display:none"> 本站访问量<span id="busuanzi_value_site_pv"></span>次 </span> <span id="busuanzi_container_site_uv" style="display:none"> / 本站访客数<span id="busuanzi_value_site_uv"></span>人 </span> <span id="busuanzi_container_page_pv" style="display:none"> / 本页访问量<span id="busuanzi_value_page_pv"></span>次 / 统计始于2018-05-01 </span></div><script type="text/javascript">document.write(unescape("%3Cspan id='cnzz_stat_icon_1279012287'%3E%3C/span%3E%3Cscript src='https://s9.cnzz.com/stat.php%3Fid%3D1279012287%26show%3Dpic' type='text/javascript'%3E%3C/script%3E"));</script> &nbsp &nbsp &nbsp <a href="http://beian.miit.gov.cn" target="_blank">京ICP备2020034168号-1</a> &nbsp &nbsp &nbsp <a href="http://www.beian.gov.cn/portal/registerSystemInfo" target="_blank">京公网安备11010502042362号</a></div></footer><div class="tools-wrapper"> <a class="gotop" href="#" title="回到顶部"><span class="octicon octicon-arrow-up"></span></a></div><script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/vendor/share.js/dist/js/share.min.js"></script> <script src="https://cdn.jsdelivr.net/gh/wenhaoclub/wenhaoclub.github.io@master/assets/js/geopattern.js"></script> <script> jQuery(document).ready(function($) { $('.geopattern').each(function(){ $(this).geopattern($(this).data('pattern-id')); }); /* hljs.initHighlightingOnLoad(); */ }); </script><div style="display:none"> <script> (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o), m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m) })(window,document,'script','https://www.google-analytics.com/analytics.js','ga'); ga('create', 'UA-80669434-1', 'auto'); ga('send', 'pageview'); </script></div></body></html>
